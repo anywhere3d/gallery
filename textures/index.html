@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <meta name="description" contents="{{description}}">
+    <link rel="manifest" href="/manifest.json">
+    <title>Gallery: Textures (v1.0)</title>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/anywhere3d.css">
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/jquery-ui.js"></script>
+    <script src="/js/jquery.lazy.js"></script>
+    <script src="/js/jquery.lazy.plugins.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/bootbox.min.js"></script>
+    <script src="/js/DeviceDetector.js"></script>
+    <script src="/js/alerts.js"></script>
+    <script src="/js/w3.js"></script>
+    <script>
+    
+        debugMode = true;
+        var jsFolder = "/js/";
+        var navbarFolder = "/navbar/";
+        var scriptsFolder = "/scripts/";
+        var componentsFolder = "/components/";
+        var animationsFolder = "/animations/";
+        $.ajaxSetup({ cache: false });
+
+    </script>
+
+</head>
+
+<body>
+
+<nav class="navbar navbar-default navbar-fixed-top">
+
+    <div id="navbar-holder" class="container">
+        <!-- navbar load script -->
+    </div>
+
+</nav>
+
+<style>
+    section.mbr-section.mbr-after-navbar { padding-top:100px; padding-bottom:20px; }
+    #msg-box1-z { margin-bottom: 0px; }
+    #render-container { overflow:hidden; opacity:1; background-color:rgba(0,0,0,0); }
+    #render-container > canvas { position:absolute; top:0px; left:0px; z-index:1; }
+    #msg-box1-z > div.nav {background-color:black; width:100%;}
+    #msg-box1-z > div.nav > div.navbar-right { margin-right:0px; padding-right:10px; }
+</style>
+
+<section class="mbr-section mbr-after-navbar" id="pager-box-top">
+
+    <div class="container">
+        <h1><b>Gallery:</b> textures</h1>
+        <a class="btn btn-primary get-prev-btn">Prev page</a>
+        <a class="btn btn-default">1</a>
+        <a class="btn btn-default">2</a>
+        <a class="btn btn-default">3</a>
+        <a class="btn btn-default">4</a>
+        <a class="btn btn-default">5</a>
+        <a class="btn btn-primary get-next-btn">Next page</a>
+    </div>
+
+</section>
+
+<style>
+    .gallery-card { width:22.8rem; display:inline-block; }
+/*  .ui-dialog { background:rgba(255,255,255,1); opacity:1; position:fixed; }  */
+    #snapshot-img { width:100%; height:auto; }
+    #get-more-snapshots { display:block; width:20%; margin:auto; margin-bottom:50px; }
+    #get-more-snapshots > a { text-decoration:none; font-weight:bold; }
+</style>
+
+<section class="mbr-section" id="body-section">
+<!-- 
+    <div id="texture-cards" class="container">
+        <div class="card thumbnail gallery-card" w3-repeat="success">
+            <img class="card-img-top" src="{{preview}}" alt="{{name}}">
+            <div class="card-body">
+                <h4 class="card-title">{{title}}</h4>
+                <h5 class="card-description">{{description}}</h5>
+            </div>
+        </div>
+    </div>
+ -->
+</section>
+
+<section class="mbr-section" id="pager-box-bottom">
+    <div class="btn btn-default load-more-btn" id="get-more-snapshots">
+        <a>Load more...</a>
+    </div>
+</section>
+
+<script>
+
+    var textures  = {};
+    textures.success = [];
+
+    var options = {};
+    options.url = "/textures/page/";
+    options.params = {};
+    options.params.page = 0;
+    debugMode && console.log("options:", options);
+
+    var bodySectionSelector = "#body-section";
+    var textureCardsComponent = componentsFolder + "texture-cards.html";
+
+    var getNextBtnSelector = ".get-next-btn";
+    var getPrevBtnSelector = ".get-prev-btn";
+    var loadMoreBtnSelector = ".load-more-btn";
+    $(getNextBtnSelector).on("click", getNextPageOnClickHandler);
+    $(getPrevBtnSelector).on("click", getPrevPageOnClickHandler);
+    $(loadMoreBtnSelector).on("click", loadMorePagesOnClickHandler);
+
+//  First load from snapshots.success.
+    getTextureImages( options ).then(function(data){
+
+        if ( !!data.success && data.success.length > 0) {
+            textures.success = textures.success.concat( data.success );
+            $(bodySectionSelector).load(textureCardsComponent, function(resoponse, status, xhr){
+                w3.displayObject("texture-cards", textures);
+            });
+        }
+
+    }).catch( function(err){
+        console.error( err );
+    });
+
+    function getTextureImages( options ){
+        return new Promise( function(resolve, reject){
+            var url = query( options );
+            $.get( url, function(data, status, xhr){
+                debugMode && console.log("get %s: %s", url, status);
+            }).then( function( data ){
+                debugMode && console.log("data:", data);
+        
+                if (!!data.error) {
+                    var error = data.error;
+                    debugMode && console.log("error:", error);
+                    throw Error(error);
+                }
+    
+                if (!!data.success) {
+                    if ( data.success.length == 0 ) {
+                        console.warn("None success data returned.");
+                        bootboxWarningAlert("End of files reached.");
+                    }
+                }
+
+                resolve(data);
+            });
+        });
+    }
+
+    function getNextPageOnClickHandler(){
+    //  First get snapshots and then increase options params page.
+    //  var copyOpts = deepCopy(options); // where is deepCopy(obj) ???
+        var copyOpts = {};
+        copyOpts.url = options.url;
+        copyOpts.params = {};
+        copyOpts.params.page = options.params.page + 1;
+    //  debugMode && console.log("options.params.page:", options.params.page);
+    
+        getTextureImages( copyOpts ).then( function(data){
+            if ( !!data.success && data.success.length > 0) {
+                textures.success.length = 0;
+                textures.success = textures.success.concat( data.success );
+                $(bodySectionSelector).load(textureCardsComponent, function(resoponse, status, xhr){
+                    w3.displayObject("texture-cards", data);
+                    //debugMode && console.log("options.params.page:", options.params.page);
+                    options.params.page = copyOpts.params.page;
+                    debugMode && console.log("options.params.page:", options.params.page);
+                });
+
+            } else {
+                debugMode && console.log("options.params.page:", options.params.page);
+            }
+            
+        }).catch( function(err){
+            console.error( err );
+        });
+    }
+
+    function getPrevPageOnClickHandler(){
+        if ( options.params.page - 1 < 0 ) return;
+    //  First get snapshots and then increase options params page.
+    //  var copyOpts = deepCopy(options); // where is deepCopy(obj) ???
+        var copyOpts = {};
+        copyOpts.url = options.url;
+        copyOpts.params = {};
+        copyOpts.params.page = options.params.page - 1;
+    //  debugMode && console.log("options.params.page:", options.params.page);
+
+        getTextureImages( copyOpts ).then( function(data){
+            if ( !!data.success && data.success.length > 0) {
+                textures.success.length = 0;
+                textures.success = textures.success.concat( data.success );
+                $(bodySectionSelector).load(textureCardsComponent, function(resoponse, status, xhr){
+                    w3.displayObject("texture-cards", data);
+                    //debugMode && console.log("options.params.page:", options.params.page);
+                    options.params.page = copyOpts.params.page;
+                    debugMode && console.log("options.params.page:", options.params.page);
+                });
+
+            } else {
+                debugMode && console.log("options.params.page:", options.params.page);
+            }
+
+        }).catch( function(err){
+            console.error( err );
+        });
+
+    }
+
+    function loadMorePagesOnClickHandler(){
+    //  First get snapshots and then increase options params page.
+    //  var copyOpts = deepCopy(options); // where is deepCopy(obj) ???
+        var copyOpts = {};
+        copyOpts.url = options.url;
+        copyOpts.params = {};
+        copyOpts.params.page = options.params.page + 1;
+
+        getTextureImages( copyOpts ).then( function(data){
+            if ( !!data.success && data.success.length > 0) {
+                textures.success = textures.success.concat( data.success );
+                $(bodySectionSelector).load(textureCardsComponent, function(resoponse, status, xhr){
+                    w3.displayObject("texture-cards", textures);
+                    //debugMode && console.log("options.params.page:", options.params.page);
+                    options.params.page = copyOpts.params.page;
+                    debugMode && console.log("options.params.page:", options.params.page);
+                });
+
+            } else {
+                debugMode && console.log("options.params.page:", options.params.page);
+            }
+
+        }).catch( function(err){
+            console.error( err );
+        });
+
+    }
+
+    function query(options){
+        if ( !options.url ) return;
+        var route = options.url;
+        for (var name in options.params){
+            route += options.params[name];
+        }
+        debugMode && console.log("query route:", route);
+        return route;
+    }
+
+</script>
+
+
+</body>
+</html>
